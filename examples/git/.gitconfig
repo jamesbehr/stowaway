@@ -1,0 +1,8 @@
+[core]
+    excludesfile = ~/.git/ignore
+
+[commit]
+    template = ~/.git/commit
+
+[commit]
+    template = ~/.git/template
