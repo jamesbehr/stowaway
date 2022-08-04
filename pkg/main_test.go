@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -118,6 +119,47 @@ func writeManifest(t *testing.T, root filesystem.Path, name string, manifest *Ma
 	if err != nil {
 		t.Fatalf("WriteFile %s: %s", name, err)
 	}
+}
+
+func writeFile(t *testing.T, root filesystem.Path, name string, contents string, perm os.FileMode) {
+	path := root.Join(name)
+
+	if err := path.Parent().MkdirAll(0755); err != nil {
+		t.Fatalf("MkdirAll %s: %s", name, err)
+	}
+
+	err := path.WriteFile([]byte(contents), perm)
+	if err != nil {
+		t.Fatalf("WriteFile %s: %s", name, err)
+	}
+}
+
+func TestRunHook(t *testing.T) {
+	tmp := tmpDir(t, "hooks", []string{"bash/", "data/"})
+	defer tmp.RemoveAll()
+
+	loader := Loader{
+		State:  tmp.Join("data"),
+		Target: tmp.Join("home/user"),
+		Source: tmp.Join("bash"),
+	}
+
+	writeManifest(t, tmp, "bash/stowaway.toml", &Manifest{})
+
+	p, err := loader.Load()
+	require.NoError(t, err)
+
+	script := `#!/bin/sh
+touch "$1/hookran"`
+
+	writeFile(t, tmp, "bash/hooks/broken", "not executable", 0655)
+	writeFile(t, tmp, "bash/hooks/working", script, 0755)
+
+	require.NoError(t, p.RunHookIfExists("missing"))
+	require.NoError(t, p.RunHookIfExists("working"))
+	require.Error(t, p.RunHookIfExists("broken"))
+
+	require.FileExists(t, tmp.Join("data/hookran").String())
 }
 
 type InstallTestCase struct {
@@ -310,4 +352,181 @@ func TestUninstall(t *testing.T) {
 			assertMissing(t, tmp, testCase.ExpectedMissing)
 		})
 	}
+}
+
+type MockPackage struct {
+	IsInstalled   bool
+	InstallCalled func(string, bool)
+	HookCalled    func(string, string)
+	Name          string
+}
+
+func (m *MockPackage) Install() error {
+	if m.InstallCalled != nil {
+		m.InstallCalled(m.Name, false)
+	}
+
+	return nil
+}
+
+func (m *MockPackage) Uninstall() error {
+	if m.InstallCalled != nil {
+		m.InstallCalled(m.Name, true)
+	}
+
+	return nil
+}
+
+func (m *MockPackage) Installed() (bool, error) {
+	return m.IsInstalled, nil
+}
+
+func (m *MockPackage) RunHookIfExists(name string) error {
+	if m.HookCalled != nil {
+		m.HookCalled(m.Name, name)
+	}
+
+	return nil
+}
+
+func TestStow(t *testing.T) {
+
+	testCases := []struct {
+		IsInstalled                    bool
+		Delete                         bool
+		ExpectInstall, ExpectUninstall bool
+	}{
+		{IsInstalled: true, Delete: true, ExpectInstall: false, ExpectUninstall: true},
+		{IsInstalled: false, Delete: true, ExpectInstall: false, ExpectUninstall: false},
+		{IsInstalled: true, Delete: false, ExpectInstall: true, ExpectUninstall: true},
+		{IsInstalled: false, Delete: false, ExpectInstall: true, ExpectUninstall: false},
+	}
+
+	for _, testCase := range testCases {
+		name := fmt.Sprintf("installed=%t delete=%t", testCase.IsInstalled, testCase.Delete)
+
+		t.Run(name, func(t *testing.T) {
+			installCalled := false
+			uninstallCalled := false
+
+			mock := MockPackage{
+				IsInstalled: testCase.IsInstalled,
+				InstallCalled: func(name string, uninstall bool) {
+					if uninstall {
+						uninstallCalled = true
+					} else {
+						installCalled = true
+					}
+				},
+			}
+
+			options := StowOptions{
+				Delete: testCase.Delete,
+			}
+
+			err := Stow(options, &mock)
+			require.NoError(t, err)
+
+			require.Equal(t, testCase.ExpectUninstall, uninstallCalled)
+			require.Equal(t, testCase.ExpectInstall, installCalled)
+		})
+	}
+
+	t.Run("uninstall hooks", func(t *testing.T) {
+		actions := []string{}
+		ins := func(pkgName string, uninstall bool) {
+			action := "install"
+			if uninstall {
+				action = "uninstall"
+			}
+
+			actions = append(actions, fmt.Sprintf("%s:%s", pkgName, action))
+		}
+
+		hook := func(pkgName, name string) {
+			actions = append(actions, fmt.Sprintf("%s:%s", pkgName, name))
+		}
+
+		pkgs := []Package{
+			&MockPackage{Name: "a", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{Name: "b", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{Name: "c", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
+		}
+
+		options := StowOptions{
+			Delete: true,
+		}
+
+		err := Stow(options, pkgs...)
+		require.NoError(t, err)
+
+		require.Equal(t, []string{
+			"a:before_uninstall_all",
+			"b:before_uninstall_all",
+			"c:before_uninstall_all",
+			"a:before_uninstall",
+			"a:uninstall",
+			"a:after_uninstall",
+			"c:before_uninstall",
+			"c:uninstall",
+			"c:after_uninstall",
+			"a:after_uninstall_all",
+			"b:after_uninstall_all",
+			"c:after_uninstall_all",
+		}, actions)
+	})
+
+	t.Run("install hooks", func(t *testing.T) {
+		actions := []string{}
+		ins := func(pkgName string, uninstall bool) {
+			action := "install"
+			if uninstall {
+				action = "uninstall"
+			}
+
+			actions = append(actions, fmt.Sprintf("%s:%s", pkgName, action))
+		}
+
+		hook := func(pkgName, name string) {
+			actions = append(actions, fmt.Sprintf("%s:%s", pkgName, name))
+		}
+
+		pkgs := []Package{
+			&MockPackage{Name: "a", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{Name: "b", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{Name: "c", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
+		}
+
+		options := StowOptions{
+			Delete: false,
+		}
+
+		err := Stow(options, pkgs...)
+		require.NoError(t, err)
+
+		require.Equal(t, []string{
+			"a:before_install_all",
+			"b:before_install_all",
+			"c:before_install_all",
+
+			"a:before_install",
+			"a:install",
+			"a:after_install",
+
+			"b:before_uninstall",
+			"b:uninstall",
+			"b:after_uninstall",
+			"b:before_install",
+			"b:install",
+			"b:after_install",
+
+			"c:before_install",
+			"c:install",
+			"c:after_install",
+
+			"a:after_install_all",
+			"b:after_install_all",
+			"c:after_install_all",
+		}, actions)
+	})
 }

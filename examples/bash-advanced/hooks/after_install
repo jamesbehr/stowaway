@@ -1,0 +1,2 @@
+#!/usr/bin/env
+touch $1/target/customfile

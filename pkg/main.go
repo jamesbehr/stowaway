@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/jamesbehr/stowaway/filesystem"
@@ -19,11 +20,13 @@ type Package interface {
 	Installed() (bool, error)
 	Install() error
 	Uninstall() error
+	RunHookIfExists(name string) error
 }
 
 type Manifest struct {
 	Name   string `toml:"name,omitempty"`
 	Source string `toml:"source,omitempty"`
+	Hooks  string `toml:"hooks,omitempty"`
 }
 
 type Loader struct {
@@ -34,17 +37,19 @@ func (l Loader) DefaultManifest() Manifest {
 	return Manifest{
 		Name:   l.Source.String(),
 		Source: "src",
+		Hooks:  "hooks",
 	}
 }
 
 func (l Loader) Load() (Package, error) {
 	pkg := &localPackage{
-		State:      l.State,
-		Source:     l.Source,
-		Target:     l.Target,
-		SourceLink: l.State.Join("source"),
-		TargetLink: l.State.Join("target"),
-		Links:      l.State.Join("links"),
+		State:       l.State,
+		Source:      l.Source,
+		PackageRoot: l.Source,
+		Target:      l.Target,
+		SourceLink:  l.State.Join("source"),
+		TargetLink:  l.State.Join("target"),
+		Links:       l.State.Join("links"),
 	}
 
 	manifest := pkg.Source.Join("stowaway.toml")
@@ -76,17 +81,62 @@ func (l Loader) Load() (Package, error) {
 }
 
 type localPackage struct {
-	State      filesystem.Path
-	Source     filesystem.Path
-	Target     filesystem.Path
+	// State is the path where all the package state will be stored
+	State filesystem.Path
+
+	// Source is the location of all the files in the package that will get
+	// symlinks
+	Source filesystem.Path
+
+	// Package root is the directory containing every package file. If the
+	// package has no manifest (i.e. it is a simple package), then this will be
+	// the same as Source.
+	PackageRoot filesystem.Path
+
+	// Target is the the location of the directory that all symlinks will be
+	// created relative to
+	Target filesystem.Path
+
+	// SourceLink is the path of the symlink in State that points to Source
 	SourceLink filesystem.Path
+
+	// TargetLink is the path of the symlink in State that points to Target
 	TargetLink filesystem.Path
-	Links      filesystem.Path
-	Manifest   *Manifest
+
+	// Links is the path in State that contains a number of symlinks. Each
+	// symlink in this directory points to another symlink that was created in
+	// the target directory.
+	Links filesystem.Path
+
+	// Manifiest is the parsed manifest for this package. If it is nil, then
+	// the package had no manifiest and is thus a simple package. Simple
+	// packages have no hooks and every file inside the package root will get a
+	// symlink that points to it created.
+	Manifest *Manifest
 }
 
 func shouldSymlink(mode fs.FileMode) bool {
 	return mode.IsRegular() || mode == fs.ModeSymlink
+}
+
+func (pkg localPackage) RunHookIfExists(name string) error {
+	// Simple packages cannot have hooks
+	if pkg.Manifest == nil {
+		return nil
+	}
+
+	executable := pkg.PackageRoot.Join(pkg.Manifest.Hooks, name)
+	exists, err := executable.Exists()
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return nil
+	}
+
+	cmd := exec.Command(executable.String(), pkg.State.String())
+	return cmd.Run()
 }
 
 func (pkg localPackage) Installed() (bool, error) {
@@ -218,4 +268,80 @@ func (pkg localPackage) Uninstall() error {
 	}
 
 	return pkg.State.RemoveAll()
+}
+
+type StowOptions struct {
+	Delete bool
+}
+
+const (
+	HookBeforeUninstallAll = "before_uninstall_all"
+	HookAfterUninstallAll  = "after_uninstall_all"
+	HookBeforeUninstall    = "before_uninstall"
+	HookAfterUninstall     = "after_uninstall"
+	HookBeforeInstall      = "before_install"
+	HookAfterInstall       = "after_install"
+	HookBeforeInstallAll   = "before_install_all"
+	HookAfterInstallAll    = "after_install_all"
+)
+
+func Stow(options StowOptions, pkgs ...Package) error {
+	for _, pkg := range pkgs {
+		hook := HookBeforeInstallAll
+		if options.Delete {
+			hook = HookBeforeUninstallAll
+		}
+
+		if err := pkg.RunHookIfExists(hook); err != nil {
+			return err
+		}
+	}
+
+	for _, pkg := range pkgs {
+		installed, err := pkg.Installed()
+		if err != nil {
+			return err
+		}
+
+		if installed {
+			if err := pkg.RunHookIfExists(HookBeforeUninstall); err != nil {
+				return err
+			}
+
+			if err := pkg.Uninstall(); err != nil {
+				return err
+			}
+
+			if err := pkg.RunHookIfExists(HookAfterUninstall); err != nil {
+				return err
+			}
+		}
+
+		if !options.Delete {
+			if err := pkg.RunHookIfExists(HookBeforeInstall); err != nil {
+				return err
+			}
+
+			if err := pkg.Install(); err != nil {
+				return err
+			}
+
+			if err := pkg.RunHookIfExists(HookAfterInstall); err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, pkg := range pkgs {
+		hook := HookAfterInstallAll
+		if options.Delete {
+			hook = HookAfterUninstallAll
+		}
+
+		if err := pkg.RunHookIfExists(hook); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

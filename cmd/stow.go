@@ -13,7 +13,7 @@ import (
 )
 
 var target string
-var deletePackage bool
+var options pkg.StowOptions
 
 func hash(path string) string {
 	h := md5.Sum([]byte(path))
@@ -62,28 +62,13 @@ var stowCmd = &cobra.Command{
 			packages = append(packages, pkg)
 		}
 
-		for _, pkg := range packages {
-			installed, err := pkg.Installed()
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			if installed {
-				if err := pkg.Uninstall(); err != nil {
-					log.Fatal(err)
-				}
-			}
-
-			if !deletePackage {
-				if err := pkg.Install(); err != nil {
-					log.Fatal(err)
-				}
-			}
+		if err = pkg.Stow(options, packages...); err != nil {
+			log.Fatal(err)
 		}
 	},
 }
 
 func init() {
 	stowCmd.Flags().StringVarP(&target, "target", "t", "", "installation target (default is $PWD)")
-	stowCmd.Flags().BoolVarP(&deletePackage, "delete", "D", false, "uninstall the packages")
+	stowCmd.Flags().BoolVarP(&options.Delete, "delete", "D", false, "uninstall the packages")
 }

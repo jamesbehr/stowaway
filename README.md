@@ -10,6 +10,7 @@ from your home directory.
 ## Differences to GNU Stow
 - Zero dependencies, just download and run the binary
 - Keeps track of which symlinks have been created
+- Scriptable hooks to run before or after a package is installed
 
 ## Installation
 You can install it with `go install`.
@@ -60,12 +61,87 @@ If you want to uninstall a package you can provide the `--delete` flag.
 
     $ stowaway stow --delete --target /home/me ~/dotfiles/bash
 
-## How it works
+## Advanced features
+Stowaway also supports some advanced features, such as installation hooks.
+Hooks are scripts that run at certain points in the package's life cycle. For
+example, you might have a package that has code written in a compiled language.
+You could use a hook that runs after the package is installed to run `make` and
+compile the package.
+
+To use these advanced features, you'll need to use a different package
+structure to the normal, GNU Stow-compatible, packages. An package that wants
+to use these features might look like this:
+
+    $ find bash-advanced/
+    examples/bash-advanced
+    examples/bash-advanced/src
+    examples/bash-advanced/src/.bashrc
+    examples/bash-advanced/stowaway.toml
+    examples/bash-advanced/hooks
+    examples/bash-advanced/hooks/after_install
+
+Notice the `stowaway.toml` in the root of the package. This is the package
+manifest. The presence of the package manifest enables the advanced features.
+
+All the files that will get symlinks created are now located under the `src`
+directory in the package. You can change this package by setting the `source`
+configuration option in the package manifest. All symlink names are derived
+from the name of the file relative to this directory, that is to say the name
+of the symlink pointing to `src/.bashrc` will be `$TARGET/.bashrc`, not
+`$TARGET/src/.bashrc` (where `$TARGET` is the installation target directory).
+
+The package can also specify hooks, which work similarly to Git hooks. A hook
+is just a file with the executable flag set. This file will be executed at
+certain points in the package life cycle. All hooks currently get the path to
+the packages installation state directory passed as their only argument. See
+the [section on package state](#package-state). The name of the hook specifies
+the life cycle event that will cause it to run.
+
+The following hoooks are currently available, in the order they are run:
+
+`before_uninstall_all`: Run for each selected package in a `stow --delete`
+operation.
+`before_uninstall` : Run for a package right before it is uninstalled. Only run
+if the package is installed.
+`after_uninstall`: Run after uninstalling the package.
+`after_uninstall_all` Like `before_uninstall_all`, but run after every package
+was uninstalled.
+`before_install_all`: Run for each selected package in a `stow` operation.
+`before_install` : Run for a package right before it is installed.
+`after_install`: Run after installing the package.
+`after_install_all` Like `before_install_all`, but run after every package
+was installed.
+
+# [Package State][package-state]
 Stowaway keeps track of each package installed in the `.stowaway` directory
 inside the target directory. Inside this directory are a number of
 subdirectories, each containing the state of an installed Stowaway package.
 
+    $ stowaway stow --target /home/me ~/dotfiles/bash
+    find /home/me/.stowaway/fa1934
+    /home/me/.stowaway/fa1934/links
+    /home/me/.stowaway/fa1934/links/0
+    /home/me/.stowaway/fa1934/target
+    /home/me/.stowaway/fa1934/source
+
+In the example above, `/home/me/.stowaway/fa1934` is the package installation
+state directory.
+
 For each symlink that Stowaway creates, it creates another symlink pointing to
-that symlink inside the package state directory. This allows Stoaway to track
-which symlinks it has created, even when the contents of the package have been
-modified.
+that symlink inside the `links` directory. This enables Stowaway to keep track
+of which symlinks it has created, even when the contents of the package have
+been modified.
+
+The `target` and `source` directories are symlinks to the installation target
+and package source directories respectively. For packages with a manifest, this
+defaults to the `src` directory in the package root, and is the same as the
+package root for packages without a manifest.
+
+    $ readlink /home/me/.stowaway/fa1934/links/0
+    /home/me/.stowaway/fa1934/target/.bashrc
+
+    $ readlink /home/me/.stowaway/fa1934/target/.bashrc
+    /home/me/.stowaway/fa1934/source/.bashrc
+
+    $ readlink /home/me/.stowaway/fa1934/source/.bashrc
+    /home/me/dotfiles/bash/.bashrc
