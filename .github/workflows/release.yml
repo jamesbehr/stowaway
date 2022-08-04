@@ -1,0 +1,66 @@
+name: Build and upload binaries to a release
+on:
+  release:
+    types: [published]
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.x
+      - run: |
+          function build_stowaway {
+            local file="stowaway-${GOOS}-${GOARCH}"
+            go build -o stowaway
+            tar -czf "${file}.tar.gz" stowaway
+            sha256sum "${file}.tar.gz" > "${file}.tar.gz.sha256sum"
+            rm stowaway
+          }
+
+          GOOS=linux GOARCH=amd64 build_stowaway
+          GOOS=linux GOARCH=arm GOARM=6 build_stowaway
+          GOOS=linux GOARCH=arm64 build_stowaway
+          GOOS=darwin GOARCH=amd64 build_stowaway
+          GOOS=darwin GOARCH=arm64 build_stowaway
+      - uses: actions/upload-artifact@v2
+        with:
+          name: binaries
+          path: stowaway-*
+  upload:
+    if: ${{ github.event_name == 'release' }}
+    needs: build
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: binaries
+      - name: Upload release artifacts
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs").promises;
+            const { repo: { owner, repo }, sha } = context;
+            const release = await github.repos.getReleaseByTag({
+              owner, repo,
+              tag: process.env.GITHUB_REF.replace("refs/tags/", ""),
+            });
+            console.log("Release:", { release });
+            for (let file of await fs.readdir(".")) {
+              if (!file.startsWith("stowaway-")) continue;
+              console.log("Uploading", file);
+              await github.repos.uploadReleaseAsset({
+                owner, repo,
+                release_id: release.data.id,
+                name: file,
+                data: await fs.readFile(file),
+              });
+            }
