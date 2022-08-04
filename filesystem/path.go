@@ -57,6 +57,14 @@ func (p Path) Remove() error {
 	return os.Remove(string(p))
 }
 
+func (p Path) WriteFile(data []byte, perm os.FileMode) error {
+	return os.WriteFile(string(p), data, perm)
+}
+
+func (p Path) Open() (*os.File, error) {
+	return os.Open(string(p))
+}
+
 func (p Path) Readlink() (Path, error) {
 	target, err := os.Readlink(string(p))
 	if err != nil {

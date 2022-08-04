@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/jamesbehr/stowaway/filesystem"
+	"github.com/pelletier/go-toml/v2"
 )
 
 var (
@@ -20,8 +21,20 @@ type Package interface {
 	Uninstall() error
 }
 
+type Manifest struct {
+	Name   string `toml:"name,omitempty"`
+	Source string `toml:"source,omitempty"`
+}
+
 type Loader struct {
 	State, Source, Target filesystem.Path
+}
+
+func (l Loader) DefaultManifest() Manifest {
+	return Manifest{
+		Name:   l.Source.String(),
+		Source: "src",
+	}
 }
 
 func (l Loader) Load() (Package, error) {
@@ -34,11 +47,42 @@ func (l Loader) Load() (Package, error) {
 		Links:      l.State.Join("links"),
 	}
 
+	manifest := pkg.Source.Join("stowaway.toml")
+	exists, err := manifest.Exists()
+	if err != nil {
+		return nil, err
+	}
+
+	if exists {
+		f, err := manifest.Open()
+		if err != nil {
+			return nil, err
+		}
+
+		defer f.Close()
+
+		m := l.DefaultManifest()
+
+		err = toml.NewDecoder(f).Decode(&m)
+		if err != nil {
+			return nil, err
+		}
+
+		pkg.Manifest = &m
+		pkg.Source = pkg.Source.Join(m.Source)
+	}
+
 	return pkg, nil
 }
 
 type localPackage struct {
-	State, Source, Target, SourceLink, TargetLink, Links filesystem.Path
+	State      filesystem.Path
+	Source     filesystem.Path
+	Target     filesystem.Path
+	SourceLink filesystem.Path
+	TargetLink filesystem.Path
+	Links      filesystem.Path
+	Manifest   *Manifest
 }
 
 func shouldSymlink(mode fs.FileMode) bool {
