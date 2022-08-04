@@ -41,31 +41,41 @@ var stowCmd = &cobra.Command{
 
 		targetPath := filesystem.MakePath(target)
 
+		var packages []pkg.Package
 		for _, arg := range args {
 			path, err := filepath.Abs(arg)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			installer := pkg.Installer{
+			loader := pkg.Loader{
 				State:  targetPath.Join(".stowaway", hash(path)),
 				Source: filesystem.MakePath(path),
 				Target: targetPath,
 			}
 
-			installed, err := installer.Installed()
+			pkg, err := loader.Load()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			packages = append(packages, pkg)
+		}
+
+		for _, pkg := range packages {
+			installed, err := pkg.Installed()
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			if installed {
-				if err := installer.Uninstall(); err != nil {
+				if err := pkg.Uninstall(); err != nil {
 					log.Fatal(err)
 				}
 			}
 
 			if !deletePackage {
-				if err := installer.Install(); err != nil {
+				if err := pkg.Install(); err != nil {
 					log.Fatal(err)
 				}
 			}

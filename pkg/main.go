@@ -14,28 +14,39 @@ var (
 	ErrPackageNotInstalled = errors.New("pkg: package not installed")
 )
 
-type Installer struct {
+type Package interface {
+	Installed() (bool, error)
+	Install() error
+	Uninstall() error
+}
+
+type Loader struct {
 	State, Source, Target filesystem.Path
 }
 
-func (i Installer) SourceLink() filesystem.Path {
-	return i.State.Join("source")
+func (l Loader) Load() (Package, error) {
+	pkg := &localPackage{
+		State:      l.State,
+		Source:     l.Source,
+		Target:     l.Target,
+		SourceLink: l.State.Join("source"),
+		TargetLink: l.State.Join("target"),
+		Links:      l.State.Join("links"),
+	}
+
+	return pkg, nil
 }
 
-func (i Installer) TargetLink() filesystem.Path {
-	return i.State.Join("target")
-}
-
-func (i Installer) Links() filesystem.Path {
-	return i.State.Join("links")
+type localPackage struct {
+	State, Source, Target, SourceLink, TargetLink, Links filesystem.Path
 }
 
 func shouldSymlink(mode fs.FileMode) bool {
 	return mode.IsRegular() || mode == fs.ModeSymlink
 }
 
-func (i Installer) Installed() (bool, error) {
-	exists, err := i.State.Exists()
+func (pkg localPackage) Installed() (bool, error) {
+	exists, err := pkg.State.Exists()
 	if err != nil {
 		return false, err
 	}
@@ -43,8 +54,8 @@ func (i Installer) Installed() (bool, error) {
 	return exists, err
 }
 
-func (i Installer) Install() error {
-	exists, err := i.State.Exists()
+func (pkg localPackage) Install() error {
+	exists, err := pkg.State.Exists()
 	if err != nil {
 		return err
 	}
@@ -53,20 +64,20 @@ func (i Installer) Install() error {
 		return ErrPackageInstalled
 	}
 
-	if err := i.Links().MkdirAll(0700); err != nil {
+	if err := pkg.Links.MkdirAll(0700); err != nil {
 		return err
 	}
 
-	if err := i.SourceLink().Symlink(i.Source); err != nil {
+	if err := pkg.SourceLink.Symlink(pkg.Source); err != nil {
 		return err
 	}
 
-	if err := i.TargetLink().Symlink(i.Target); err != nil {
+	if err := pkg.TargetLink.Symlink(pkg.Target); err != nil {
 		return err
 	}
 
 	linkCount := 0
-	return i.SourceLink().Walk(func(path string, info os.FileInfo, err error) error {
+	return pkg.SourceLink.Walk(func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -80,8 +91,8 @@ func (i Installer) Install() error {
 			return nil
 		}
 
-		target := i.TargetLink().Join(path)
-		link := i.Links().Join(strconv.Itoa(linkCount))
+		target := pkg.TargetLink.Join(path)
+		link := pkg.Links.Join(strconv.Itoa(linkCount))
 		linkCount++
 
 		// Every symlink that is created in the target directory gets an entry
@@ -96,7 +107,7 @@ func (i Installer) Install() error {
 			return err
 		}
 
-		source := i.SourceLink().Join(path)
+		source := pkg.SourceLink.Join(path)
 		if err := target.Symlink(source); err != nil {
 			return err
 		}
@@ -105,8 +116,8 @@ func (i Installer) Install() error {
 	})
 }
 
-func (i Installer) Uninstall() error {
-	exists, err := i.State.Exists()
+func (pkg localPackage) Uninstall() error {
+	exists, err := pkg.State.Exists()
 	if err != nil {
 		return err
 	}
@@ -115,7 +126,7 @@ func (i Installer) Uninstall() error {
 		return ErrPackageNotInstalled
 	}
 
-	err = i.Links().Walk(func(path string, info os.FileInfo, err error) error {
+	err = pkg.Links.Walk(func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -124,7 +135,7 @@ func (i Installer) Uninstall() error {
 			return nil
 		}
 
-		link := i.Links().Join(path)
+		link := pkg.Links.Join(path)
 		target, err := link.Readlink()
 		if err != nil {
 			return err
@@ -162,5 +173,5 @@ func (i Installer) Uninstall() error {
 		}
 	}
 
-	return i.State.RemoveAll()
+	return pkg.State.RemoveAll()
 }

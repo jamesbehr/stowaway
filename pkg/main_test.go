@@ -115,13 +115,16 @@ func TestInstall(t *testing.T) {
 
 		defer tmp.RemoveAll()
 
-		p := Installer{
+		loader := Loader{
 			State:  tmp.Join("data"),
 			Target: tmp.Join("home/user"),
 			Source: tmp.Join("bash"),
 		}
 
-		err := p.Install()
+		p, err := loader.Load()
+		require.NoError(t, err)
+
+		err = p.Install()
 		require.NoError(t, err)
 
 		assertLinks(t, tmp, Links{
@@ -157,13 +160,16 @@ func TestUninstall(t *testing.T) {
 			"home/user/.bin/test": "data/source/.bin/test",
 		})
 
-		p := Installer{
+		loader := Loader{
 			State:  tmp.Join("data"),
 			Target: tmp.Join("home/user"),
 			Source: tmp.Join("bash"),
 		}
 
-		err := p.Uninstall()
+		p, err := loader.Load()
+		require.NoError(t, err)
+
+		err = p.Uninstall()
 		require.NoError(t, err)
 
 		assertMissing(t, tmp, []string{
@@ -188,13 +194,16 @@ func TestUninstall(t *testing.T) {
 			"data/target": "home/user",
 		})
 
-		p := Installer{
+		loader := Loader{
 			State:  tmp.Join("data"),
 			Target: tmp.Join("home/user"),
 			Source: tmp.Join("bash"),
 		}
 
-		err := p.Uninstall()
+		p, err := loader.Load()
+		require.NoError(t, err)
+
+		err = p.Uninstall()
 		require.NoError(t, err)
 
 		assertMissing(t, tmp, []string{
