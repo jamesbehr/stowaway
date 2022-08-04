@@ -17,9 +17,15 @@ You can install it with `go install`.
     go install github.com/jamesbehr/stowaway
 
 If you just want to download the binary, you can also do that. This is useful
-for bootstrapping scripts that will setup your dotfiles on a clean install.
+for bootstrapping scripts that will setup your dotfiles on a clean install. For
+example, you can download the 64-bit x86 Linux binaries like this. See the
+releases page for more information about which platforms are supported.
 
-    curl -o stowaway https://github.com/jamesbehr/stowaway/releases/latest/download/stowaway-linux-amd64
+    curl -LO  https://github.com/jamesbehr/stowaway/releases/latest/download/stowaway-linux-amd64.tar.gz
+    curl -LO  https://github.com/jamesbehr/stowaway/releases/latest/download/stowaway-linux-amd64.tar.gz.sha256sum
+    sha256sum -c stowaway-linux-amd64.tar.gz.sha256sum
+    tar -xzf stowaway-linux-amd64.tar.gz
+    rm stowaway-linux-amd64.tar.gz*
 
 ## Usage
 Like GNU Stow, Stowaway operates on *packages*. Packages are GNU Stow
