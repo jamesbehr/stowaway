@@ -41,14 +41,14 @@ symlink to each file in the package in the target directory and create any
 missing directories along the way. The symlinks path in the target directory
 corresponds to its path in the package directory.
 
-You can install a package by running the `install` command. You can specify
+You can install a package by running the `stow` command. You can specify
 multiple packages paths to install into a target directory. If you do not
 specify a target directory with the `--target` flag, then the current working
 directory will be used as the target. If the package is already installed it
 will be uninstalled before being reinstalled.
 
     $ cp -ar examples ~/dotfiles
-    $ stowaway install --target /home/me ~/dotfiles/bash
+    $ stowaway stow --target /home/me ~/dotfiles/bash
 
 After installing there will be a file called `/home/me/.bashrc` pointing to the
 file in the package `~/dotfiles/bash/.bashrc`.
@@ -56,9 +56,9 @@ file in the package `~/dotfiles/bash/.bashrc`.
     $ readlink -f ~/.bashrc
     /home/me/dotfiles/bash/.bashrc
 
-Uninstalling works the same way, but with the `uninstall` command.
+If you want to uninstall a package you can provide the `--delete` flag.
 
-    stowaway uninstall --target /home/me ~/dotfiles/bash
+    $ stowaway stow --delete --target /home/me ~/dotfiles/bash
 
 ## How it works
 Stowaway keeps track of each package installed in the `.stowaway` directory
