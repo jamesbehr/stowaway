@@ -171,7 +171,7 @@ You can run the Go tests using the `go` CLI.
     go test ./...
 
 You can also verify that the examples in the README are correct by running
-[`docshtest`](https://github.com/jamesbehr/stowaway).
+[`docshtest`](https://github.com/jamesbehr/docshtest).
 
     CGO_ENABLED=0 go build
 
