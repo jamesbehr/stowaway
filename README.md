@@ -82,6 +82,7 @@ $ ls -a .bash*
 .bash_logout
 ```
 
+### Interactive mode
 You can also pass the `--interactive` flag to the `stow` command, which will
 prompt the user to select which packages they want to install or uninstall from
 the list of packages you provide as arguments. This allows you to do things
@@ -183,8 +184,6 @@ $ readlink -f /home/me/.stowaway/37bc12/source/.bashrc
 
 ## Tests
 You can run the unit tests by running `make test`.
-
-    go test ./...
 
 You can also verify that the examples in the README are correct by `make
 doctest`. This requires Docker to be installed. The doctests validate that
