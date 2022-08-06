@@ -53,23 +53,33 @@ directory will be used as the target. If the package is already installed it
 will be uninstalled before being reinstalled.
 
 ```console
+$ pwd
+/home/me
 $ rm .bashrc
 $ cp -avr stowaway/examples ~/dotfiles
-$ stowaway stow --target /home/me ~/dotfiles/bash
+$ stowaway stow ~/dotfiles/bash
 ```
 
 After installing there will be a file called `/home/me/.bashrc` pointing to the
 file in the package `~/dotfiles/bash/.bashrc`.
 
 ```console
+$ ls -a .bash*
+.bash_logout
+.bashrc
+
 $ readlink -f ~/.bashrc
 /home/me/dotfiles/bash/.bashrc
 ```
 
-If you want to uninstall a package you can provide the `--delete` flag.
+If you want to uninstall a package you can provide the `--delete` flag. This
+will clear up symlinks even when the original package has been modified.
 
 ```console
-$ stowaway stow --delete --target /home/me ~/dotfiles/bash
+$ rm ~/dotfiles/bash/.bashrc
+$ stowaway stow --delete ~/dotfiles/bash
+$ ls -a .bash*
+.bash_logout
 ```
 
 You can also pass the `--interactive` flag to the `stow` command, which will
@@ -137,17 +147,17 @@ inside the target directory. Inside this directory are a number of
 subdirectories, each containing the state of an installed Stowaway package.
 
 ```console
-$ stowaway stow --target /home/me ~/dotfiles/bash
+$ stowaway stow stowaway/examples/bash
 $ find /home/me/.stowaway
 /home/me/.stowaway
-/home/me/.stowaway/fa1934
-/home/me/.stowaway/fa1934/links
-/home/me/.stowaway/fa1934/links/0
-/home/me/.stowaway/fa1934/source
-/home/me/.stowaway/fa1934/target
+/home/me/.stowaway/37bc12
+/home/me/.stowaway/37bc12/links
+/home/me/.stowaway/37bc12/links/0
+/home/me/.stowaway/37bc12/source
+/home/me/.stowaway/37bc12/target
 ```
 
-In the example above, `/home/me/.stowaway/fa1934` is the package installation
+In the example above, `/home/me/.stowaway/37bc12` is the package installation
 state directory.
 
 For each symlink that Stowaway creates, it creates another symlink pointing to
@@ -161,14 +171,14 @@ defaults to the `src` directory in the package root, and is the same as the
 package root for packages without a manifest.
 
 ```console
-$ readlink /home/me/.stowaway/fa1934/links/0
-/home/me/.stowaway/fa1934/target/.bashrc
+$ readlink /home/me/.stowaway/37bc12/links/0
+/home/me/.stowaway/37bc12/target/.bashrc
 
-$ readlink /home/me/.stowaway/fa1934/target/.bashrc
-/home/me/.stowaway/fa1934/source/.bashrc
+$ readlink /home/me/.stowaway/37bc12/target/.bashrc
+/home/me/.stowaway/37bc12/source/.bashrc
 
-$ readlink -f /home/me/.stowaway/fa1934/source/.bashrc
-/home/me/dotfiles/bash/.bashrc
+$ readlink -f /home/me/.stowaway/37bc12/source/.bashrc
+/home/me/stowaway/examples/bash/.bashrc
 ```
 
 ## Tests
