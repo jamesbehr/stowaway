@@ -1,1 +1,0 @@
-/home/james/go/src/github.com/jamesbehr/stowaway/root/.stowaway/c3ef74/source/.bashrc
