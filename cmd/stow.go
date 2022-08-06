@@ -105,6 +105,6 @@ var stowCmd = &cobra.Command{
 
 func init() {
 	stowCmd.Flags().StringVarP(&target, "target", "t", "", "installation target (default is $PWD)")
-	stowCmd.Flags().BoolVarP(&interactive, "interacitve", "i", false, "start an interactive session to filter the packages passed as arguments before installing")
+	stowCmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "start an interactive session to filter the packages passed as arguments before installing")
 	stowCmd.Flags().BoolVarP(&options.Delete, "delete", "D", false, "uninstall the packages")
 }
