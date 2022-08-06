@@ -172,21 +172,11 @@ $ readlink -f /home/me/.stowaway/fa1934/source/.bashrc
 ```
 
 ## Tests
-You can run the Go tests using the `go` CLI.
+You can run the unit tests by running `make test`.
 
     go test ./...
 
-You can also verify that the examples in the README are correct by running
-[`docshtest`](https://github.com/jamesbehr/docshtest).
-
-    CGO_ENABLED=0 go build
-
-    docker run --rm -it \
-        -v $(pwd)/stowaway:/usr/bin/stowaway \
-        -v $(pwd):/home/me/stowaway \
-        jamesbehr/docshtest:latest \
-        --run-highlighted-code-fences console \
-        stowaway/README.md
-
-This validates that every code fence in this markdown document that has `console`
-selected as its language actually outputs what is written down.
+You can also verify that the examples in the README are correct by `make
+doctest`. This requires Docker to be installed. The doctests validate that
+every code fence in this markdown document that has `console` selected as its
+language actually outputs what is written down.
