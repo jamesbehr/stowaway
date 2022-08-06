@@ -17,7 +17,7 @@ jobs:
       - run: |
           function build_stowaway {
             local file="stowaway-${GOOS}-${GOARCH}"
-            go build -o stowaway
+            CGO_ENABLED=0 go build -o stowaway
             tar -czf "${file}.tar.gz" stowaway
             sha256sum "${file}.tar.gz" > "${file}.tar.gz.sha256sum"
             rm stowaway
