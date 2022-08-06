@@ -105,10 +105,6 @@ select which ones they want to install.
 
 ## Advanced features
 Stowaway also supports some advanced features, such as installation hooks.
-Hooks are scripts that run at certain points in the package's life cycle. For
-example, you might have a package that has code written in a compiled language.
-You could use a hook that runs after the package is installed to run `make` and
-compile the package.
 
 To use these advanced features, you'll need to use a different package
 structure to the normal, GNU Stow-compatible, packages. An package that wants
@@ -134,9 +130,26 @@ from the name of the file relative to this directory, that is to say the name
 of the symlink pointing to `src/.bashrc` will be `$TARGET/.bashrc`, not
 `$TARGET/src/.bashrc` (where `$TARGET` is the installation target directory).
 
+### Package Manifest
+Package manifests are written in TOML and currently support the following
+options.
+
+```toml
+name = "foobar" # Package name - defaults to the name of the package directory
+source = "files" # The directory where all the files in the package are kept. Defaults to "src"
+hooks = "scripts" # The directory where hooks are package. Defaults to "hooks"
+```
+
+### Hooks
 The package can also specify hooks, which work similarly to Git hooks. A hook
 is just a file with the executable flag set. This file will be executed at
-certain points in the package life cycle. All hooks currently get the path to
+certain points in the package life cycle. For example, you might have a package
+that has code written in a compiled language. You could use a hook that runs
+after the package is installed to run `make` and compile the package.
+
+Hooks by default are kept in the `hooks` directory, but this can be changed
+with the `hooks` manifest option.
+
 the packages installation state directory passed as their only argument. See
 the [section on package state](#package-state). The name of the hook specifies
 the life cycle event that will cause it to run.
