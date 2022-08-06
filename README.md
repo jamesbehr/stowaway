@@ -33,9 +33,13 @@ Like GNU Stow, Stowaway operates on *packages*. Packages are GNU Stow
 compatible, in that they are just directories containing a number of files.
 Each file inside the package will get a symlink in the target directory.
 
-    $ find examples/bash
-    examples/bash
-    examples/bash/.bashrc
+Assuming you've cloned the repository into a directory called `stowaway`,
+
+```console
+$ find stowaway/examples/bash
+stowaway/examples/bash
+stowaway/examples/bash/.bashrc
+```
 
 The package will be installed into a *target directory*. Stowaway will create a
 symlink to each file in the package in the target directory and create any
@@ -48,18 +52,25 @@ specify a target directory with the `--target` flag, then the current working
 directory will be used as the target. If the package is already installed it
 will be uninstalled before being reinstalled.
 
-    $ cp -ar examples ~/dotfiles
-    $ stowaway stow --target /home/me ~/dotfiles/bash
+```console
+$ rm .bashrc
+$ cp -avr stowaway/examples ~/dotfiles
+$ stowaway stow --target /home/me ~/dotfiles/bash
+```
 
 After installing there will be a file called `/home/me/.bashrc` pointing to the
 file in the package `~/dotfiles/bash/.bashrc`.
 
-    $ readlink -f ~/.bashrc
-    /home/me/dotfiles/bash/.bashrc
+```console
+$ readlink -f ~/.bashrc
+/home/me/dotfiles/bash/.bashrc
+```
 
 If you want to uninstall a package you can provide the `--delete` flag.
 
-    $ stowaway stow --delete --target /home/me ~/dotfiles/bash
+```console
+$ stowaway stow --delete --target /home/me ~/dotfiles/bash
+```
 
 ## Advanced features
 Stowaway also supports some advanced features, such as installation hooks.
@@ -72,13 +83,15 @@ To use these advanced features, you'll need to use a different package
 structure to the normal, GNU Stow-compatible, packages. An package that wants
 to use these features might look like this:
 
-    $ find bash-advanced/
-    examples/bash-advanced
-    examples/bash-advanced/src
-    examples/bash-advanced/src/.bashrc
-    examples/bash-advanced/stowaway.toml
-    examples/bash-advanced/hooks
-    examples/bash-advanced/hooks/after_install
+```console
+$ find stowaway/examples/bash-advanced
+stowaway/examples/bash-advanced
+stowaway/examples/bash-advanced/src
+stowaway/examples/bash-advanced/src/.bashrc
+stowaway/examples/bash-advanced/stowaway.toml
+stowaway/examples/bash-advanced/hooks
+stowaway/examples/bash-advanced/hooks/after_install
+```
 
 Notice the `stowaway.toml` in the root of the package. This is the package
 manifest. The presence of the package manifest enables the advanced features.
@@ -99,30 +112,34 @@ the life cycle event that will cause it to run.
 
 The following hoooks are currently available, in the order they are run:
 
-`before_uninstall_all`: Run for each selected package in a `stow --delete`
+- `before_uninstall_all`: Run for each selected package in a `stow --delete`
 operation.
-`before_uninstall` : Run for a package right before it is uninstalled. Only run
+- `before_uninstall` : Run for a package right before it is uninstalled. Only run
 if the package is installed.
-`after_uninstall`: Run after uninstalling the package.
-`after_uninstall_all` Like `before_uninstall_all`, but run after every package
+- `after_uninstall`: Run after uninstalling the package.
+- `after_uninstall_all` Like `before_uninstall_all`, but run after every package
 was uninstalled.
-`before_install_all`: Run for each selected package in a `stow` operation.
-`before_install` : Run for a package right before it is installed.
-`after_install`: Run after installing the package.
-`after_install_all` Like `before_install_all`, but run after every package
+- `before_install_all`: Run for each selected package in a `stow` operation.
+- `before_install` : Run for a package right before it is installed.
+- `after_install`: Run after installing the package.
+- `after_install_all` Like `before_install_all`, but run after every package
 was installed.
 
-# [Package State][package-state]
+## Package State
 Stowaway keeps track of each package installed in the `.stowaway` directory
 inside the target directory. Inside this directory are a number of
 subdirectories, each containing the state of an installed Stowaway package.
 
-    $ stowaway stow --target /home/me ~/dotfiles/bash
-    find /home/me/.stowaway/fa1934
-    /home/me/.stowaway/fa1934/links
-    /home/me/.stowaway/fa1934/links/0
-    /home/me/.stowaway/fa1934/target
-    /home/me/.stowaway/fa1934/source
+```console
+$ stowaway stow --target /home/me ~/dotfiles/bash
+$ find /home/me/.stowaway
+/home/me/.stowaway
+/home/me/.stowaway/fa1934
+/home/me/.stowaway/fa1934/links
+/home/me/.stowaway/fa1934/links/0
+/home/me/.stowaway/fa1934/source
+/home/me/.stowaway/fa1934/target
+```
 
 In the example above, `/home/me/.stowaway/fa1934` is the package installation
 state directory.
@@ -137,11 +154,33 @@ and package source directories respectively. For packages with a manifest, this
 defaults to the `src` directory in the package root, and is the same as the
 package root for packages without a manifest.
 
-    $ readlink /home/me/.stowaway/fa1934/links/0
-    /home/me/.stowaway/fa1934/target/.bashrc
+```console
+$ readlink /home/me/.stowaway/fa1934/links/0
+/home/me/.stowaway/fa1934/target/.bashrc
 
-    $ readlink /home/me/.stowaway/fa1934/target/.bashrc
-    /home/me/.stowaway/fa1934/source/.bashrc
+$ readlink /home/me/.stowaway/fa1934/target/.bashrc
+/home/me/.stowaway/fa1934/source/.bashrc
 
-    $ readlink /home/me/.stowaway/fa1934/source/.bashrc
-    /home/me/dotfiles/bash/.bashrc
+$ readlink -f /home/me/.stowaway/fa1934/source/.bashrc
+/home/me/dotfiles/bash/.bashrc
+```
+
+## Tests
+You can run the Go tests using the `go` CLI.
+
+    go test ./...
+
+You can also verify that the examples in the README are correct by running
+[`docshtest`](https://github.com/jamesbehr/stowaway).
+
+    CGO_ENABLED=0 go build
+
+    docker run --rm -it \
+        -v $(pwd)/stowaway:/usr/bin/stowaway \
+        -v $(pwd):/home/me/stowaway \
+        jamesbehr/docshtest:latest \
+        --run-highlighted-code-fences console \
+        stowaway/README.md
+
+This validates that every code fence in this markdown document that has `console`
+selected as its language actually outputs what is written down.
