@@ -1,6 +1,6 @@
 .PHONY: test doctest clean
 
-stowaway:
+stowaway: $(shell find -name '*.go')
 	env CGO_ENABLED=0 go build
 
 test:

@@ -142,6 +142,17 @@ was uninstalled.
 - `after_install_all` Like `before_install_all`, but run after every package
 was installed.
 
+The example `bash-advanced` uses an [after install
+hook](examples/bash-advanced/hooks/after_install). It creates a file
+`customfile` in the target directory.
+
+```console
+$ stowaway stow stowaway/examples/bash-advanced
+$ cat customfile
+hello from after install hook
+$ stowaway stow --delete stowaway/examples/bash-advanced
+```
+
 ## Package State
 Stowaway keeps track of each package installed in the `.stowaway` directory
 inside the target directory. Inside this directory are a number of

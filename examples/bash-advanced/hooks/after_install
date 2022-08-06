@@ -1,2 +1,2 @@
-#!/usr/bin/env
-touch $1/target/customfile
+#!/usr/bin/env bash
+echo 'hello from after install hook' > $1/target/customfile
