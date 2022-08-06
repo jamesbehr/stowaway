@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -145,6 +146,12 @@ func (pkg localPackage) RunHookIfExists(name string) error {
 	}
 
 	cmd := exec.Command(executable.String(), pkg.State.String())
+
+	cmd.Env = []string{
+		fmt.Sprintf("STOWAWAY_SOURCE=%s", pkg.Source.String()),
+		fmt.Sprintf("STOWAWAY_TARGET=%s", pkg.Target.String()),
+		fmt.Sprintf("STOWAWAY_PACKAGE_ROOT=%s", pkg.PackageRoot.String()),
+	}
 	return cmd.Run()
 }
 

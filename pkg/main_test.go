@@ -149,8 +149,7 @@ func TestRunHook(t *testing.T) {
 	p, err := loader.Load()
 	require.NoError(t, err)
 
-	script := `#!/bin/sh
-touch "$1/hookran"`
+	script := "#!/bin/sh\nprintenv > $1/env"
 
 	writeFile(t, tmp, "bash/hooks/broken", "not executable", 0655)
 	writeFile(t, tmp, "bash/hooks/working", script, 0755)
@@ -159,7 +158,19 @@ touch "$1/hookran"`
 	require.NoError(t, p.RunHookIfExists("working"))
 	require.Error(t, p.RunHookIfExists("broken"))
 
-	require.FileExists(t, tmp.Join("data/hookran").String())
+	contents, err := os.ReadFile(tmp.Join("data/env").String())
+
+	env := map[string]string{}
+	for _, line := range strings.Split(string(contents), "\n") {
+		fields := strings.SplitN(line, "=", 2)
+		if len(fields) == 2 {
+			env[fields[0]] = fields[1]
+		}
+	}
+
+	require.Equal(t, tmp.Join("bash/src").String(), env["STOWAWAY_SOURCE"])
+	require.Equal(t, tmp.Join("bash").String(), env["STOWAWAY_PACKAGE_ROOT"])
+	require.Equal(t, tmp.Join("home/user").String(), env["STOWAWAY_TARGET"])
 }
 
 type InstallTestCase struct {
@@ -358,12 +369,16 @@ type MockPackage struct {
 	IsInstalled   bool
 	InstallCalled func(string, bool)
 	HookCalled    func(string, string)
-	Name          string
+	PackageName   string
+}
+
+func (m *MockPackage) Name() string {
+	return m.PackageName
 }
 
 func (m *MockPackage) Install() error {
 	if m.InstallCalled != nil {
-		m.InstallCalled(m.Name, false)
+		m.InstallCalled(m.PackageName, false)
 	}
 
 	return nil
@@ -371,7 +386,7 @@ func (m *MockPackage) Install() error {
 
 func (m *MockPackage) Uninstall() error {
 	if m.InstallCalled != nil {
-		m.InstallCalled(m.Name, true)
+		m.InstallCalled(m.PackageName, true)
 	}
 
 	return nil
@@ -383,7 +398,7 @@ func (m *MockPackage) Installed() (bool, error) {
 
 func (m *MockPackage) RunHookIfExists(name string) error {
 	if m.HookCalled != nil {
-		m.HookCalled(m.Name, name)
+		m.HookCalled(m.PackageName, name)
 	}
 
 	return nil
@@ -448,9 +463,9 @@ func TestStow(t *testing.T) {
 		}
 
 		pkgs := []Package{
-			&MockPackage{Name: "a", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
-			&MockPackage{Name: "b", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
-			&MockPackage{Name: "c", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{PackageName: "a", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{PackageName: "b", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{PackageName: "c", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
 		}
 
 		options := StowOptions{
@@ -492,9 +507,9 @@ func TestStow(t *testing.T) {
 		}
 
 		pkgs := []Package{
-			&MockPackage{Name: "a", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
-			&MockPackage{Name: "b", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
-			&MockPackage{Name: "c", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{PackageName: "a", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{PackageName: "b", IsInstalled: true, HookCalled: hook, InstallCalled: ins},
+			&MockPackage{PackageName: "c", IsInstalled: false, HookCalled: hook, InstallCalled: ins},
 		}
 
 		options := StowOptions{

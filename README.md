@@ -127,6 +127,16 @@ the packages installation state directory passed as their only argument. See
 the [section on package state](#package-state). The name of the hook specifies
 the life cycle event that will cause it to run.
 
+The hooks also get called with the following environment variables set. This is
+more useful for hooks that run prior to installation, when no package state has
+been created.
+
+- `STOWAWAY_SOURCE` is set the the absolute path containing the package's
+  source files.
+- `STOWAWAY_TARGET` is set the the absolute path where the package will be
+  installed.
+- `STOWAWAY_PACKAGE_ROOT` is set the the absolute path of package root.
+
 The following hoooks are currently available, in the order they are run:
 
 - `before_uninstall_all`: Run for each selected package in a `stow --delete`
