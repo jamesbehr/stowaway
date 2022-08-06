@@ -7,10 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/jamesbehr/stowaway/filesystem"
 	"github.com/jamesbehr/stowaway/pkg"
 	"github.com/spf13/cobra"
-	"gopkg.in/AlecAivazis/survey.v1"
 )
 
 var target string
@@ -23,24 +23,22 @@ func hash(path string) string {
 	return digest[:6]
 }
 
-func interactiveFilter(paths []string, packages []pkg.Package) ([]pkg.Package, error) {
-	var selected []string
-	prompt := &survey.MultiSelect{
-		Message: "Choose packages to install",
-		Options: paths,
+func interactiveFilter(packages []pkg.Package) ([]pkg.Package, error) {
+	names := make([]string, len(packages))
+	for i, pkg := range packages {
+		names[i] = pkg.Name()
 	}
 
-	survey.AskOne(prompt, &selected, survey.Required)
+	var selected []int
+	prompt := &survey.MultiSelect{
+		Message: "Choose packages to install",
+		Options: names,
+	}
+
+	survey.AskOne(prompt, &selected, survey.WithValidator(survey.Required))
 
 	filtered := make([]pkg.Package, len(selected))
-	for i, path := range selected {
-		var index int
-		for i := range paths {
-			if paths[i] == path {
-				index = i
-			}
-		}
-
+	for i, index := range selected {
 		filtered[i] = packages[index]
 	}
 
@@ -93,7 +91,7 @@ var stowCmd = &cobra.Command{
 		}
 
 		if interactive {
-			packages, err = interactiveFilter(args, packages)
+			packages, err = interactiveFilter(packages)
 			if err != nil {
 				log.Fatal(err)
 			}
