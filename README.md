@@ -72,6 +72,12 @@ If you want to uninstall a package you can provide the `--delete` flag.
 $ stowaway stow --delete --target /home/me ~/dotfiles/bash
 ```
 
+You can also pass the `--interactive` flag to the `stow` command, which will
+prompt the user to select which packages they want to install or uninstall from
+the list of packages you provide as arguments. This allows you to do things
+like passing in all the available packages as arguments and have the user
+select which ones they want to install.
+
 ## Advanced features
 Stowaway also supports some advanced features, such as installation hooks.
 Hooks are scripts that run at certain points in the package's life cycle. For

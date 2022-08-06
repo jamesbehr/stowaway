@@ -25,6 +25,10 @@ func (p Path) Join(names ...string) Path {
 	return MakePath(args...)
 }
 
+func (p Path) Basename() string {
+	return filepath.Base(string(p))
+}
+
 func (p Path) Parent() Path {
 	return Path(filepath.Dir(string(p)))
 }

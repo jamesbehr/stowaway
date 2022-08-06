@@ -21,6 +21,7 @@ type Package interface {
 	Install() error
 	Uninstall() error
 	RunHookIfExists(name string) error
+	Name() string
 }
 
 type Manifest struct {
@@ -35,7 +36,7 @@ type Loader struct {
 
 func (l Loader) DefaultManifest() Manifest {
 	return Manifest{
-		Name:   l.Source.String(),
+		Name:   l.Source.Basename(),
 		Source: "src",
 		Hooks:  "hooks",
 	}
@@ -117,6 +118,14 @@ type localPackage struct {
 
 func shouldSymlink(mode fs.FileMode) bool {
 	return mode.IsRegular() || mode == fs.ModeSymlink
+}
+
+func (pkg localPackage) Name() string {
+	if pkg.Manifest == nil {
+		return pkg.Source.Basename()
+	}
+
+	return pkg.Manifest.Name
 }
 
 func (pkg localPackage) RunHookIfExists(name string) error {
