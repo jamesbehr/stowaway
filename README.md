@@ -82,6 +82,20 @@ $ ls -a .bash*
 .bash_logout
 ```
 
+You can also list the packages installed in a given directory. If you do not
+override it with the `--target` flag, then it lists packages installed into the
+current working directory by default.
+
+```console
+$ stowaway stow dotfiles/bash stowaway/examples/git
+$ stowaway packages
+/home/me/stowaway/examples/git
+/home/me/dotfiles/bash
+$ stowaway packages --prefix /home/me/stowaway
+/home/me/stowaway/examples/git
+$ stowaway stow --delete dotfiles/bash stowaway/examples/git
+```
+
 ### Interactive mode
 You can also pass the `--interactive` flag to the `stow` command, which will
 prompt the user to select which packages they want to install or uninstall from

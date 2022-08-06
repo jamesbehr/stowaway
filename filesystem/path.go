@@ -82,6 +82,10 @@ func (p Path) Symlink(target Path) error {
 	return os.Symlink(string(target), string(p))
 }
 
+func (p Path) ReadDir() ([]fs.DirEntry, error) {
+	return os.ReadDir(string(p))
+}
+
 func (p Path) Walk(f filepath.WalkFunc) error {
 	fsys := os.DirFS(string(p))
 	return fs.WalkDir(fsys, ".", func(path string, entry fs.DirEntry, err error) error {

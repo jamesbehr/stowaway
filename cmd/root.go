@@ -14,6 +14,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(stowCmd)
+	rootCmd.AddCommand(packagesCmd)
 }
 
 func Execute() {
